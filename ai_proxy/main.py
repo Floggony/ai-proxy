@@ -1,24 +1,30 @@
 """Main FastAPI application."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 
 from ai_proxy.llm_client import LLMClient
 from ai_proxy.schemas import ChatCompletionRequest, ChatCompletionResponse
 
+llm_client = LLMClient()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application lifecycle."""
+    yield
+    await llm_client.close()
+
+
 app = FastAPI(
     title="AI Proxy",
     description="OpenAI-compatible proxy with self-assessment routing",
     version="0.1.0",
+    lifespan=lifespan,
 )
-
-llm_client = LLMClient()
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """Close LLM client on shutdown."""
-    await llm_client.close()
 
 
 @app.get("/health")
@@ -27,7 +33,7 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions", response_model=None)
 async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResponse | StreamingResponse:
     """OpenAI-compatible chat completions endpoint."""
     messages = [msg.model_dump() for msg in request.messages]
