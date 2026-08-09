@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -12,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 # Model name that triggers auto-classification
 AUTO_MODEL = "auto"
+
+# Pattern to match source prefix like [local] or [cloud]
+SOURCE_PREFIX_PATTERN = re.compile(r"^\[(local|cloud)\]\s*")
+
+
+def strip_source_prefix(text: str) -> str:
+    """Remove [local] or [cloud] prefix from text."""
+    return SOURCE_PREFIX_PATTERN.sub("", text)
 
 
 class LLMClient:
@@ -30,7 +39,9 @@ class LLMClient:
 
     async def classify_query(self, query: str) -> str:
         """Classify query complexity using local model."""
-        prompt = settings.classification_prompt.format(query=query)
+        # Strip any existing source prefix before classification
+        clean_query = strip_source_prefix(query)
+        prompt = settings.classification_prompt.format(query=clean_query)
 
         response = await self.local_client.post(
             "/chat/completions",
@@ -69,16 +80,24 @@ class LLMClient:
             client = self.local_client
             actual_model = model if model and model != AUTO_MODEL else settings.local_llm_model
 
+        # Strip source prefixes from messages before sending to LLM
+        clean_messages = []
+        for msg in messages:
+            clean_msg = msg.copy()
+            if clean_msg.get("content") and isinstance(clean_msg["content"], str):
+                clean_msg["content"] = strip_source_prefix(clean_msg["content"])
+            clean_messages.append(clean_msg)
+
         payload = {
             "model": actual_model,
-            "messages": messages,
+            "messages": clean_messages,
             "stream": stream,
         }
         logger.debug("Sending to %s: %s", target, json.dumps(payload, ensure_ascii=False)[:500])
 
         # Make request
         if stream:
-            return self._stream_completion(client, actual_model, messages, target)
+            return self._stream_completion(client, actual_model, clean_messages, target)
         else:
             response = await client.post(
                 "/chat/completions",
