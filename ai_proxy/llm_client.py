@@ -105,7 +105,13 @@ class LLMClient:
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if line.startswith("data: "):
-                    yield line[6:]
+                    data = line[6:]
+                    if data.strip() == "[DONE]":
+                        yield "data: [DONE]\n\n"
+                    else:
+                        yield f"data: {data}\n\n"
+            # Ensure we always send [DONE]
+            yield "data: [DONE]\n\n"
 
     async def close(self) -> None:
         """Close HTTP clients."""
