@@ -75,7 +75,7 @@ class LLMClient:
 
         # Make request
         if stream:
-            return self._stream_completion(client, actual_model, messages)
+            return self._stream_completion(client, actual_model, messages, target)
         else:
             response = await client.post(
                 "/chat/completions",
@@ -84,15 +84,24 @@ class LLMClient:
             logger.debug("Response status: %s", response.status_code)
             logger.debug("Response body: %s", response.text[:500])
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # Add source prefix to content
+            if result.get("choices") and result["choices"][0].get("message"):
+                content = result["choices"][0]["message"].get("content", "")
+                result["choices"][0]["message"]["content"] = f"[{target}] {content}"
+
+            return result
 
     async def _stream_completion(
         self,
         client: httpx.AsyncClient,
         model: str,
         messages: list[dict],
+        target: str,
     ) -> AsyncGenerator[str, None]:
         """Stream chat completion response."""
+        prefix_added = False
         async with client.stream(
             "POST",
             "/chat/completions",
@@ -109,6 +118,17 @@ class LLMClient:
                     if data.strip() == "[DONE]":
                         yield "data: [DONE]\n\n"
                     else:
+                        # Add prefix to first content chunk
+                        if not prefix_added:
+                            try:
+                                chunk = json.loads(data)
+                                if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
+                                    content = chunk["choices"][0]["delta"]["content"]
+                                    chunk["choices"][0]["delta"]["content"] = f"[{target}] {content}"
+                                    data = json.dumps(chunk)
+                                    prefix_added = True
+                            except json.JSONDecodeError:
+                                pass
                         yield f"data: {data}\n\n"
             # Ensure we always send [DONE]
             yield "data: [DONE]\n\n"
