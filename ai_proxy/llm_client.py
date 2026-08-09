@@ -10,6 +10,9 @@ from ai_proxy.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Model name that triggers auto-classification
+AUTO_MODEL = "auto"
+
 
 class LLMClient:
     """Client for interacting with LLM APIs."""
@@ -51,8 +54,8 @@ class LLMClient:
         stream: bool = False,
     ) -> dict | AsyncGenerator:
         """Send chat completion request to appropriate model."""
-        # Classify if model not specified
-        if model is None:
+        # Classify if model is None or "auto"
+        if model is None or model == AUTO_MODEL:
             query = messages[-1].get("content", "")
             target = await self.classify_query(query)
         else:
@@ -61,10 +64,10 @@ class LLMClient:
         # Select client and model
         if target == "cloud":
             client = self.cloud_client
-            actual_model = model or settings.cloud_llm_model
+            actual_model = model if model and model != AUTO_MODEL else settings.cloud_llm_model
         else:
             client = self.local_client
-            actual_model = model or settings.local_llm_model
+            actual_model = model if model and model != AUTO_MODEL else settings.local_llm_model
 
         payload = {
             "model": actual_model,
