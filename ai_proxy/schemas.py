@@ -1,14 +1,29 @@
 """Pydantic schemas for API requests and responses."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class Message(BaseModel):
     """Chat message."""
 
     role: str
-    content: str | None = None
+    content: str | list | None = None
     name: str | None = None
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def normalize_content(cls, v):
+        """Convert list content to string."""
+        if isinstance(v, list):
+            # Extract text from content blocks: [{"type": "text", "text": "..."}]
+            parts = []
+            for item in v:
+                if isinstance(item, dict) and "text" in item:
+                    parts.append(item["text"])
+                elif isinstance(item, str):
+                    parts.append(item)
+            return "\n".join(parts) if parts else None
+        return v
 
 
 class ChatCompletionRequest(BaseModel):

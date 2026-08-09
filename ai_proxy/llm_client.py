@@ -1,10 +1,14 @@
 """LLM client for local and cloud models."""
 
+import json
+import logging
 from collections.abc import AsyncGenerator
 
 import httpx
 
 from ai_proxy.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -49,7 +53,7 @@ class LLMClient:
         """Send chat completion request to appropriate model."""
         # Classify if model not specified
         if model is None:
-            query = messages[-1]["content"]
+            query = messages[-1].get("content", "")
             target = await self.classify_query(query)
         else:
             target = "cloud" if "mimo" in model else "local"
@@ -62,18 +66,23 @@ class LLMClient:
             client = self.local_client
             actual_model = model or settings.local_llm_model
 
+        payload = {
+            "model": actual_model,
+            "messages": messages,
+            "stream": stream,
+        }
+        logger.debug("Sending to %s: %s", target, json.dumps(payload, ensure_ascii=False)[:500])
+
         # Make request
         if stream:
             return self._stream_completion(client, actual_model, messages)
         else:
             response = await client.post(
                 "/chat/completions",
-                json={
-                    "model": actual_model,
-                    "messages": messages,
-                    "stream": False,
-                },
+                json=payload,
             )
+            logger.debug("Response status: %s", response.status_code)
+            logger.debug("Response body: %s", response.text[:500])
             response.raise_for_status()
             return response.json()
 
