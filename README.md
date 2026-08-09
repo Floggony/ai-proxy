@@ -38,7 +38,7 @@ LOCAL_LLM_MODEL=Ternary-Bonsai-27B-Q2_g64
 # Cloud LLM (MiMo)
 CLOUD_LLM_URL=https://token-plan-sgp.xiaomimimo.com/v1
 CLOUD_LLM_API_KEY=your-api-key
-CLOUD_LLM_MODEL=mimo-v2.5-pro
+CLOUD_LLM_MODEL=mimo-v2.5
 
 # Server
 HOST=0.0.0.0

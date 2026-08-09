@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # Cloud LLM (MiMo)
     cloud_llm_url: str = "https://token-plan-sgp.xiaomimimo.com/v1"
     cloud_llm_api_key: str = ""
-    cloud_llm_model: str = "mimo-v2.5-pro"
+    cloud_llm_model: str = "mimo-v2.5"
 
     # Server
     host: str = "0.0.0.0"
