@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv
+venv
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+
+# IDE
+.vscode
+.idea
+
+# Documentation
+README.md
+LICENSE
+
+# Environment (will be passed via env_file)
+.env
